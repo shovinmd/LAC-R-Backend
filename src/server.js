@@ -3,7 +3,9 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const connectMongoDB = require('./config/mongo');
-require('dotenv').config({ path: '../.env' });
+require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
+
+console.log("DEBUG MONGO_URI:", process.env.MONGO_URI);
 
 // Connect to MongoDB
 connectMongoDB();
@@ -36,7 +38,7 @@ app.get('/health', (req, res) => {
 
 // Ping route for monitoring
 app.get('/ping', (req, res) => {
-  res.status(200).json({ status: 'OK', message: 'Pong', timestamp: new Date().toISOString() });
+  res.status(200).json({ message: 'Pong' });
 });
 
 // Error handling middleware
