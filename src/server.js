@@ -38,7 +38,7 @@ app.get('/health', (req, res) => {
 
 // Ping route for monitoring
 app.get('/ping', (req, res) => {
-  res.status(200).json({ message: 'Pong' });
+  res.status(200).json({ message: 'Pong', timestamp: new Date().toISOString() });
 });
 
 // Error handling middleware
