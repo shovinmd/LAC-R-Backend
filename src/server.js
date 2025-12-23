@@ -29,6 +29,7 @@ app.use(limiter);
 app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/users', require('./routes/user.routes'));
 app.use('/api/robots', require('./routes/robot.routes'));
+app.use('/api/esp32', require('./routes/esp32.routes'));
 app.use('/api/status', require('./routes/status.routes'));
 
 // Health check

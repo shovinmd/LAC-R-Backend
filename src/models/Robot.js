@@ -1,65 +1,40 @@
 const mongoose = require('mongoose');
 
 const robotSchema = new mongoose.Schema({
-  robotId: {
+  robot_id: {
     type: String,
     required: true,
     unique: true,
     index: true
   },
-  name: {
+  owner_uid: {
     type: String,
     required: true,
-    trim: true
+    index: true
   },
   model: {
     type: String,
     required: true,
-    enum: ['LAC-R Basic', 'LAC-R Pro', 'LAC-R Advanced']
+    enum: ['LAC-R', 'GEM']
   },
-  owner: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+  local_ip: {
+    type: String,
     required: true
   },
-  status: {
+  ip_password_hash: {
     type: String,
-    enum: ['online', 'offline', 'maintenance', 'error'],
-    default: 'offline'
+    required: true
   },
-  lastSeen: {
+  network_mode: {
+    type: String,
+    enum: ['AP', 'STA', 'APSTA'],
+    default: 'AP'
+  },
+  created_at: {
     type: Date,
     default: Date.now
   },
-  batteryLevel: {
-    type: Number,
-    min: 0,
-    max: 100,
-    default: 100
-  },
-  location: {
-    latitude: Number,
-    longitude: Number,
-    accuracy: Number
-  },
-  firmwareVersion: {
-    type: String,
-    default: '1.0.0'
-  },
-  capabilities: [{
-    type: String,
-    enum: ['navigation', 'object_detection', 'voice_control', 'remote_monitoring']
-  }],
-  settings: {
-    autoUpdate: { type: Boolean, default: true },
-    notifications: { type: Boolean, default: true },
-    maxSpeed: { type: Number, default: 1.0, min: 0.1, max: 2.0 }
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  updatedAt: {
+  updated_at: {
     type: Date,
     default: Date.now
   }
@@ -67,12 +42,12 @@ const robotSchema = new mongoose.Schema({
 
 // Update the updatedAt field before saving
 robotSchema.pre('save', function(next) {
-  this.updatedAt = Date.now();
+  this.updated_at = Date.now();
   next();
 });
 
 // Index for efficient queries
-robotSchema.index({ owner: 1, status: 1 });
-robotSchema.index({ lastSeen: 1 });
+robotSchema.index({ owner_uid: 1, model: 1 });
+robotSchema.index({ local_ip: 1, model: 1 }); // Allow same IP for different models
 
 module.exports = mongoose.model('Robot', robotSchema);

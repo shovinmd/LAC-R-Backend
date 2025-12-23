@@ -1,33 +1,88 @@
 const express = require('express');
+const bcrypt = require('bcryptjs');
 const router = express.Router();
 const { verifyFirebaseToken } = require('../middleware/auth');
 const Robot = require('../models/Robot');
 
-// Get all robots for the authenticated user
-router.get('/', verifyFirebaseToken, async (req, res) => {
+// POST /robot/register - Register a new robot
+router.post('/register', verifyFirebaseToken, async (req, res) => {
   try {
-    const robots = await Robot.find({ owner: req.user.uid });
-    res.json({
+    const { robot_id, model, local_ip, password } = req.body;
+
+    // Validate required fields
+    if (!robot_id || !model || !local_ip || !password) {
+      return res.status(400).json({
+        success: false,
+        error: 'robot_id, model, local_ip, and password are required'
+      });
+    }
+
+    // Validate model
+    if (!['LAC-R', 'GEM'].includes(model)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Model must be either LAC-R or GEM'
+      });
+    }
+
+    // Check if robot_id already exists
+    const existingRobot = await Robot.findOne({ robot_id });
+    if (existingRobot) {
+      return res.status(409).json({
+        success: false,
+        error: 'Robot ID already exists'
+      });
+    }
+
+    // Hash the password
+    const saltRounds = 10;
+    const ip_password_hash = await bcrypt.hash(password, saltRounds);
+
+    // Create new robot
+    const newRobot = new Robot({
+      robot_id,
+      owner_uid: req.user.uid,
+      model,
+      local_ip,
+      ip_password_hash,
+      network_mode: 'AP' // Default to AP mode
+    });
+
+    const savedRobot = await newRobot.save();
+
+    res.status(201).json({
       success: true,
-      robots: robots
+      robot: {
+        robot_id: savedRobot.robot_id,
+        model: savedRobot.model,
+        local_ip: savedRobot.local_ip,
+        network_mode: savedRobot.network_mode,
+        created_at: savedRobot.created_at
+      },
+      message: 'Robot registered successfully'
     });
   } catch (error) {
-    console.error('Error fetching robots:', error);
+    console.error('Error registering robot:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to fetch robots'
+      error: 'Failed to register robot'
     });
   }
 });
 
-// Get a specific robot by ID
-router.get('/:id', verifyFirebaseToken, async (req, res) => {
+// POST /robot/verify-password - Verify robot password
+router.post('/verify-password', verifyFirebaseToken, async (req, res) => {
   try {
-    const robot = await Robot.findOne({
-      _id: req.params.id,
-      owner: req.user.uid
-    });
+    const { robot_id, password } = req.body;
 
+    if (!robot_id || !password) {
+      return res.status(400).json({
+        success: false,
+        error: 'robot_id and password are required'
+      });
+    }
+
+    const robot = await Robot.findOne({ robot_id, owner_uid: req.user.uid });
     if (!robot) {
       return res.status(404).json({
         success: false,
@@ -35,104 +90,191 @@ router.get('/:id', verifyFirebaseToken, async (req, res) => {
       });
     }
 
+    const isValidPassword = await bcrypt.compare(password, robot.ip_password_hash);
+    if (!isValidPassword) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid password'
+      });
+    }
+
     res.json({
       success: true,
-      robot: robot
+      message: 'Password verified successfully',
+      robot: {
+        robot_id: robot.robot_id,
+        model: robot.model,
+        local_ip: robot.local_ip
+      }
     });
   } catch (error) {
-    console.error('Error fetching robot:', error);
+    console.error('Error verifying password:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to fetch robot'
+      error: 'Failed to verify password'
     });
   }
 });
 
-// Create a new robot
-router.post('/', verifyFirebaseToken, async (req, res) => {
+// GET /robot/dashboard - Get robot details for dashboard
+router.get('/dashboard', verifyFirebaseToken, async (req, res) => {
   try {
-    const { robotId, name, model, status } = req.body;
+    const robots = await Robot.find({ owner_uid: req.user.uid });
 
-    const newRobot = new Robot({
-      robotId,
-      name,
-      model,
-      owner: req.user.uid,
-      status: status || 'offline'
-    });
+    if (robots.length === 0) {
+      return res.json({
+        success: true,
+        robot: null,
+        message: 'No robots found for this user'
+      });
+    }
 
-    const savedRobot = await newRobot.save();
+    // For now, return the first robot (can be extended for multi-robot support later)
+    const robot = robots[0];
 
-    res.status(201).json({
+    res.json({
       success: true,
-      robot: savedRobot,
-      message: 'Robot created successfully'
+      robot: {
+        robot_id: robot.robot_id,
+        model: robot.model,
+        local_ip: robot.local_ip,
+        network_mode: robot.network_mode,
+        created_at: robot.created_at
+      }
     });
   } catch (error) {
-    console.error('Error creating robot:', error);
+    console.error('Error fetching dashboard:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to create robot'
+      error: 'Failed to fetch dashboard data'
     });
   }
 });
 
-// Update a robot
-router.put('/:id', verifyFirebaseToken, async (req, res) => {
+// POST /robot/set-password - Set/update robot password
+router.post('/set-password', verifyFirebaseToken, async (req, res) => {
   try {
-    const { name, model, status } = req.body;
+    const { robot_id, new_password } = req.body;
 
-    const updatedRobot = await Robot.findOneAndUpdate(
-      { _id: req.params.id, owner: req.user.uid },
-      { name, model, status },
-      { new: true }
-    );
+    if (!robot_id || !new_password) {
+      return res.status(400).json({
+        success: false,
+        error: 'robot_id and new_password are required'
+      });
+    }
 
-    if (!updatedRobot) {
+    const robot = await Robot.findOne({ robot_id, owner_uid: req.user.uid });
+    if (!robot) {
       return res.status(404).json({
         success: false,
         error: 'Robot not found'
       });
     }
 
+    // Hash the new password
+    const saltRounds = 10;
+    const new_ip_password_hash = await bcrypt.hash(new_password, saltRounds);
+
+    // Update password
+    robot.ip_password_hash = new_ip_password_hash;
+    await robot.save();
+
     res.json({
       success: true,
-      robot: updatedRobot,
-      message: 'Robot updated successfully'
+      message: 'Password updated successfully'
     });
   } catch (error) {
-    console.error('Error updating robot:', error);
+    console.error('Error setting password:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to update robot'
+      error: 'Failed to set password'
     });
   }
 });
 
-// Delete a robot
-router.delete('/:id', verifyFirebaseToken, async (req, res) => {
+// POST /robot/validate-password - Validate dashboard password
+router.post('/validate-password', verifyFirebaseToken, async (req, res) => {
   try {
-    const deletedRobot = await Robot.findOneAndDelete({
-      _id: req.params.id,
-      owner: req.user.uid
-    });
+    const { robot_id, password } = req.body;
 
-    if (!deletedRobot) {
+    if (!robot_id || !password) {
+      return res.status(400).json({
+        success: false,
+        error: 'robot_id and password are required'
+      });
+    }
+
+    const robot = await Robot.findOne({ robot_id, owner_uid: req.user.uid });
+    if (!robot) {
       return res.status(404).json({
         success: false,
         error: 'Robot not found'
       });
     }
 
+    const isValidPassword = await bcrypt.compare(password, robot.ip_password_hash);
+    if (!isValidPassword) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid password'
+      });
+    }
+
     res.json({
       success: true,
-      message: 'Robot deleted successfully'
+      message: 'Password validated successfully',
+      robot: {
+        robot_id: robot.robot_id,
+        model: robot.model,
+        local_ip: robot.local_ip,
+        network_mode: robot.network_mode
+      }
     });
   } catch (error) {
-    console.error('Error deleting robot:', error);
+    console.error('Error validating password:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to delete robot'
+      error: 'Failed to validate password'
+    });
+  }
+});
+
+// PUT /robot/update-ip - Update robot IP (additional route for IP changes)
+router.put('/update-ip', verifyFirebaseToken, async (req, res) => {
+  try {
+    const { robot_id, new_ip } = req.body;
+
+    if (!robot_id || !new_ip) {
+      return res.status(400).json({
+        success: false,
+        error: 'robot_id and new_ip are required'
+      });
+    }
+
+    const robot = await Robot.findOne({ robot_id, owner_uid: req.user.uid });
+    if (!robot) {
+      return res.status(404).json({
+        success: false,
+        error: 'Robot not found'
+      });
+    }
+
+    robot.local_ip = new_ip;
+    await robot.save();
+
+    res.json({
+      success: true,
+      message: 'IP updated successfully',
+      robot: {
+        robot_id: robot.robot_id,
+        local_ip: robot.local_ip
+      }
+    });
+  } catch (error) {
+    console.error('Error updating IP:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update IP'
     });
   }
 });
