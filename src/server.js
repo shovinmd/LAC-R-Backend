@@ -38,6 +38,7 @@ app.get('/health', (req, res) => {
 
 // Ping route for monitoring
 app.get('/ping', (req, res) => {
+  console.log(`Ping request received at ${new Date().toISOString()} from ${req.ip}`);
   res.status(200).json({ message: 'Pong', timestamp: new Date().toISOString() });
 });
 
