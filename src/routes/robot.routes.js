@@ -7,13 +7,13 @@ const Robot = require('../models/Robot');
 // POST /robot/register - Register a new robot
 router.post('/register', verifyFirebaseToken, async (req, res) => {
   try {
-    const { robot_id, model, local_ip, password } = req.body;
+    const { robot_id, model, local_ip } = req.body;
 
     // Validate required fields
-    if (!robot_id || !model || !local_ip || !password) {
+    if (!robot_id || !model || !local_ip) {
       return res.status(400).json({
         success: false,
-        error: 'robot_id, model, local_ip, and password are required'
+        error: 'robot_id, model, and local_ip are required'
       });
     }
 
@@ -34,31 +34,19 @@ router.post('/register', verifyFirebaseToken, async (req, res) => {
       });
     }
 
-    // Hash the password
-    const saltRounds = 10;
-    const ip_password_hash = await bcrypt.hash(password, saltRounds);
-
-    // Create new robot
+    // Create new robot (password will be set separately)
     const newRobot = new Robot({
       robot_id,
       owner_uid: req.user.uid,
       model,
       local_ip,
-      ip_password_hash,
       network_mode: 'AP' // Default to AP mode
     });
 
-    const savedRobot = await newRobot.save();
+    await newRobot.save();
 
     res.status(201).json({
       success: true,
-      robot: {
-        robot_id: savedRobot.robot_id,
-        model: savedRobot.model,
-        local_ip: savedRobot.local_ip,
-        network_mode: savedRobot.network_mode,
-        created_at: savedRobot.created_at
-      },
       message: 'Robot registered successfully'
     });
   } catch (error) {
