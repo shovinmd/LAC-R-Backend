@@ -78,6 +78,14 @@ router.post('/verify-password', verifyFirebaseToken, async (req, res) => {
       });
     }
 
+    // Guard: password not set yet
+    if (!robot.ip_password_hash) {
+      return res.status(400).json({
+        success: false,
+        error: 'Robot password not set'
+      });
+    }
+
     const isValidPassword = await bcrypt.compare(password, robot.ip_password_hash);
     if (!isValidPassword) {
       return res.status(401).json({
@@ -197,6 +205,14 @@ router.post('/validate-password', verifyFirebaseToken, async (req, res) => {
       return res.status(404).json({
         success: false,
         error: 'Robot not found'
+      });
+    }
+
+    // Guard: password not set yet
+    if (!robot.ip_password_hash) {
+      return res.status(400).json({
+        success: false,
+        error: 'Robot password not set'
       });
     }
 
