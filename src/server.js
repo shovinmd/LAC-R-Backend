@@ -76,6 +76,12 @@ app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Request logger for debugging routes
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl}`);
+  next();
+});
+
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -89,9 +95,10 @@ app.use('/api/robots', require('./routes/robot.routes'));
 app.use('/api/esp32', require('./routes/esp32.routes'));
 app.use('/api/status', require('./routes/status.routes'));
 
-// Alias mounts to support old/front-end cached paths without '/api'
+// Alias mounts to support clients without '/api' or singular variants
 app.use('/auth', require('./routes/auth.routes'));
 app.use('/users', require('./routes/user.routes'));
+app.use('/user', require('./routes/user.routes'));
 app.use('/robot', require('./routes/robot.routes'));
 // Health check
 app.get('/health', (req, res) => {
