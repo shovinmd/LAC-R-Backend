@@ -41,12 +41,13 @@ const corsOptions = {
       'http://127.0.0.1:3000',
       'http://127.0.0.1:5000',
       'https://lac-r-backend-1.onrender.com',
+      'https://lac-r-web.vercel.app', // Explicit Vercel site
       // Add your web build URLs here
       /^https:\/\/.*\.web\.app$/,
       /^https:\/\/.*\.firebaseapp\.com$/,
       /^http:\/\/localhost:\d+$/,
       /^https:\/\/.*\.vercel\.app$/,
-      /^https:\/\/.*\.netlify\.app$/
+      /^https:\/\/.*\.netlify\.app$/,
     ];
 
     const isAllowed = allowedOrigins.some(allowedOrigin => {
@@ -66,9 +67,11 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 };
 
+// Ensure preflight requests are handled globally
+app.options('*', cors(corsOptions));
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -86,6 +89,10 @@ app.use('/api/robots', require('./routes/robot.routes'));
 app.use('/api/esp32', require('./routes/esp32.routes'));
 app.use('/api/status', require('./routes/status.routes'));
 
+// Alias mounts to support old/front-end cached paths without '/api'
+app.use('/auth', require('./routes/auth.routes'));
+app.use('/users', require('./routes/user.routes'));
+app.use('/robot', require('./routes/robot.routes'));
 // Health check
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'OK', message: 'LAC-R Backend is running' });
