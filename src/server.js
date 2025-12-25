@@ -5,6 +5,10 @@ const rateLimit = require('express-rate-limit');
 const connectMongoDB = require('./config/mongo');
 require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
 
+// Initialize Firebase Admin SDK before routes/middleware
+const initializeFirebase = require('./config/firebase');
+initializeFirebase();
+
 console.log("DEBUG MONGO_URI:", process.env.MONGO_URI);
 
 // Connect to MongoDB
@@ -76,7 +80,6 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// Routes
 app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/users', require('./routes/user.routes'));
 app.use('/api/robots', require('./routes/robot.routes'));

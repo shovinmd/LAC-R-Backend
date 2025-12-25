@@ -1,4 +1,8 @@
+// verifyFirebaseToken (middleware function)
 const admin = require('firebase-admin');
+
+const initializeFirebase = require('../config/firebase');
+initializeFirebase();
 
 // Middleware to verify Firebase ID token
 const verifyFirebaseToken = async (req, res, next) => {
@@ -59,14 +63,4 @@ const verifyFirebaseToken = async (req, res, next) => {
   }
 };
 
-// Middleware to check if user is admin
-const requireAdmin = (req, res, next) => {
-  // This would typically check a database field or custom claims
-  // For now, we'll assume admin check is handled elsewhere
-  next();
-};
-
-module.exports = {
-  verifyFirebaseToken,
-  requireAdmin
-};
+module.exports = { verifyFirebaseToken };
