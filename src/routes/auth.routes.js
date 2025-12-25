@@ -11,20 +11,36 @@ router.post('/verify', verifyFirebaseToken, async (req, res) => {
     // Ensure user doc exists
     let userDoc = await User.findOne({ firebase_uid: req.user.uid });
     if (!userDoc) {
-      userDoc = await User.create({
-        firebase_uid: req.user.uid,
-        name: req.user.displayName || req.user.name || 'Unknown',
-        email: req.user.email,
-        photo_url: req.user.photoURL || null,
-        model_selected: false,
-        model: null,
-        dashboard_lock_enabled: true,
-        dashboard_pin_hash: null,
-        has_robot: false,
-        robot_id: null,
-        created_at: new Date(),
-        last_login: new Date(),
-      });
+      // Fallback: find by email to avoid duplicate email unique index errors
+      const existingByEmail = await User.findOne({ email: req.user.email });
+      if (existingByEmail) {
+        // Merge account: attach the current firebase_uid and update last_login
+        existingByEmail.firebase_uid = req.user.uid;
+        if (!existingByEmail.name) {
+          existingByEmail.name = req.user.displayName || req.user.name || 'Unknown';
+        }
+        if (!existingByEmail.photo_url && req.user.photoURL) {
+          existingByEmail.photo_url = req.user.photoURL;
+        }
+        existingByEmail.last_login = new Date();
+        await existingByEmail.save();
+        userDoc = existingByEmail;
+      } else {
+        userDoc = await User.create({
+          firebase_uid: req.user.uid,
+          name: req.user.displayName || req.user.name || 'Unknown',
+          email: req.user.email,
+          photo_url: req.user.photoURL || null,
+          model_selected: false,
+          model: null,
+          dashboard_lock_enabled: true,
+          dashboard_pin_hash: null,
+          has_robot: false,
+          robot_id: null,
+          created_at: new Date(),
+          last_login: new Date(),
+        });
+      }
     } else {
       userDoc.last_login = new Date();
       await userDoc.save();
