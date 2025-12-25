@@ -4,8 +4,7 @@ const userSchema = new mongoose.Schema({
   firebase_uid: {
     type: String,
     required: true,
-    unique: true,
-    index: true
+    unique: true
   },
   name: {
     type: String,
@@ -64,9 +63,5 @@ userSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
   next();
 });
-
-// Index for efficient queries
-userSchema.index({ firebase_uid: 1 });
-userSchema.index({ email: 1 });
 
 module.exports = mongoose.model('User', userSchema);
