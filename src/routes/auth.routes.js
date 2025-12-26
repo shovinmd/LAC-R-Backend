@@ -71,8 +71,10 @@ router.post('/verify', verifyFirebaseToken, async (req, res) => {
         photo_url: userDoc.photo_url,
         model_selected: userDoc.model_selected,
         model: userDoc.model,
+        models: userDoc.models || [],
+        active_model: userDoc.active_model || null,
         dashboard_lock_enabled: userDoc.dashboard_lock_enabled,
-        dashboard_pin_hash: userDoc.dashboard_pin_hash, // presence indicates "set"
+        dashboard_pin_hash: userDoc.dashboard_pin_hash,
         has_robot: userDoc.has_robot,
         robot_id: userDoc.robot_id,
         created_at: userDoc.created_at,
@@ -122,6 +124,9 @@ router.post('/dashboard-lock/set', verifyFirebaseToken, async (req, res) => {
     const lockValue = password || pin;
     if (!lockValue) {
       return res.status(400).json({ success: false, error: 'password or pin is required' });
+    }
+    if (lockValue.length < 6) {
+      return res.status(400).json({ success: false, error: 'Minimum length is 6 characters' });
     }
 
     const userDoc = await User.findOne({ firebase_uid: req.user.uid });
@@ -220,6 +225,86 @@ router.post('/model/select', verifyFirebaseToken, async (req, res) => {
   } catch (error) {
     console.error('Error selecting model:', error);
     return res.status(500).json({ success: false, error: 'Failed to select model' });
+  }
+});
+
+// NEW: add a model (adds to models[] and sets active_model if not set)
+router.post('/model/add', verifyFirebaseToken, async (req, res) => {
+  try {
+    const { model } = req.body;
+    if (!['LAC-R', 'GEM'].includes(model)) {
+      return res.status(400).json({ success: false, error: 'model must be LAC-R or GEM' });
+    }
+
+    const userDoc = await User.findOne({ firebase_uid: req.user.uid });
+    if (!userDoc) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    if (!userDoc.models) userDoc.models = [];
+    if (!userDoc.models.includes(model)) {
+      userDoc.models.push(model);
+    }
+
+    userDoc.model_selected = true;
+    userDoc.model = model;
+    if (!userDoc.active_model) {
+      userDoc.active_model = model;
+    }
+
+    await userDoc.save();
+    return res.json({ success: true, models: userDoc.models, active_model: userDoc.active_model });
+  } catch (error) {
+    console.error('Error adding model:', error);
+    return res.status(500).json({ success: false, error: 'Failed to add model' });
+  }
+});
+
+// NEW: switch active model
+router.post('/model/switch', verifyFirebaseToken, async (req, res) => {
+  try {
+    const { model } = req.body;
+    if (!['LAC-R', 'GEM'].includes(model)) {
+      return res.status(400).json({ success: false, error: 'model must be LAC-R or GEM' });
+    }
+
+    const userDoc = await User.findOne({ firebase_uid: req.user.uid });
+    if (!userDoc) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    if (!userDoc.models || !userDoc.models.includes(model)) {
+      return res.status(400).json({ success: false, error: 'Model not in user models list' });
+    }
+
+    userDoc.active_model = model;
+    await userDoc.save();
+
+    return res.json({ success: true, active_model: userDoc.active_model });
+  } catch (error) {
+    console.error('Error switching active model:', error);
+    return res.status(500).json({ success: false, error: 'Failed to switch active model' });
+  }
+});
+
+// NEW: get active model
+router.get('/model/active', verifyFirebaseToken, async (req, res) => {
+  try {
+    const userDoc = await User.findOne({ firebase_uid: req.user.uid });
+    if (!userDoc) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    let activeModel = userDoc.active_model;
+    if (!activeModel) {
+      const robot = await Robot.findOne({ owner_uid: req.user.uid }).select('model');
+      activeModel = robot?.model || null;
+    }
+
+    return res.json({ success: true, active_model: activeModel });
+  } catch (error) {
+    console.error('Error getting active model:', error);
+    return res.status(500).json({ success: false, error: 'Failed to get active model' });
   }
 });
 

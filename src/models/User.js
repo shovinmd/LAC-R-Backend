@@ -32,6 +32,15 @@ const userSchema = new mongoose.Schema({
     enum: ['LAC-R', 'GEM', null],
     default: null
   },
+  models: {
+    type: [String],
+    default: [],
+  },
+  active_model: {
+    type: String,
+    enum: ['LAC-R', 'GEM', null],
+    default: null
+  },
   dashboard_lock_enabled: {
     type: Boolean,
     default: true
