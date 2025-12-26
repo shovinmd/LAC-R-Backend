@@ -31,6 +31,21 @@ const robotSchema = new mongoose.Schema({
     enum: ['AP', 'STA', 'APSTA'],
     default: 'AP'
   },
+  // Configurable status fields for GEM model homescreen
+  gem_status_config: {
+    battery_level: {
+      type: String,
+      default: '82%'
+    },
+    signal_strength: {
+      type: String,
+      default: 'Good'
+    },
+    alert_message: {
+      type: String,
+      default: 'Obstacle Detected'
+    }
+  },
   created_at: {
     type: Date,
     default: Date.now

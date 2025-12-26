@@ -136,7 +136,9 @@ router.get('/dashboard', verifyFirebaseToken, async (req, res) => {
         model: robot.model,
         local_ip: robot.local_ip,
         network_mode: robot.network_mode,
-        created_at: robot.created_at
+        created_at: robot.created_at,
+        // Include GEM status config if robot is GEM model
+        ...(robot.model === 'GEM' && { gem_status_config: robot.gem_status_config })
       }
     });
   } catch (error) {
@@ -280,6 +282,89 @@ router.put('/update-ip', verifyFirebaseToken, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to update IP'
+    });
+  }
+});
+
+// GET /robot/gem-status/:robot_id - Get GEM model status configuration
+router.get('/gem-status/:robot_id', verifyFirebaseToken, async (req, res) => {
+  try {
+    const { robot_id } = req.params;
+
+    const robot = await Robot.findOne({ robot_id, owner_uid: req.user.uid });
+    if (!robot) {
+      return res.status(404).json({
+        success: false,
+        error: 'Robot not found'
+      });
+    }
+
+    // Check if robot is GEM model
+    if (robot.model !== 'GEM') {
+      return res.status(400).json({
+        success: false,
+        error: 'This endpoint is only for GEM model robots'
+      });
+    }
+
+    res.json({
+      success: true,
+      gem_status_config: robot.gem_status_config
+    });
+  } catch (error) {
+    console.error('Error getting GEM status config:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get GEM status configuration'
+    });
+  }
+});
+
+// PUT /robot/gem-status/:robot_id - Update GEM model status configuration
+router.put('/gem-status/:robot_id', verifyFirebaseToken, async (req, res) => {
+  try {
+    const { robot_id } = req.params;
+    const { battery_level, signal_strength, alert_message } = req.body;
+
+    const robot = await Robot.findOne({ robot_id, owner_uid: req.user.uid });
+    if (!robot) {
+      return res.status(404).json({
+        success: false,
+        error: 'Robot not found'
+      });
+    }
+
+    // Check if robot is GEM model
+    if (robot.model !== 'GEM') {
+      return res.status(400).json({
+        success: false,
+        error: 'This endpoint is only for GEM model robots'
+      });
+    }
+
+    // Update the configurable status fields
+    if (battery_level !== undefined) {
+      robot.gem_status_config.battery_level = battery_level;
+    }
+    if (signal_strength !== undefined) {
+      robot.gem_status_config.signal_strength = signal_strength;
+    }
+    if (alert_message !== undefined) {
+      robot.gem_status_config.alert_message = alert_message;
+    }
+
+    await robot.save();
+
+    res.json({
+      success: true,
+      message: 'GEM status configuration updated successfully',
+      gem_status_config: robot.gem_status_config
+    });
+  } catch (error) {
+    console.error('Error updating GEM status config:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to update GEM status configuration'
     });
   }
 });
