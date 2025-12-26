@@ -49,6 +49,7 @@ robotSchema.pre('save', function(next) {
 
 // Index for efficient queries
 robotSchema.index({ owner_uid: 1, model: 1 });
-robotSchema.index({ local_ip: 1, model: 1 }); // Allow same IP for different models
+// Replace/augment with compound index for lookup by owner + ip + model (NOT unique)
+robotSchema.index({ owner_uid: 1, local_ip: 1, model: 1 });
 
 module.exports = mongoose.model('Robot', robotSchema);
