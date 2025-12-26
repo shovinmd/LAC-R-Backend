@@ -40,6 +40,7 @@ router.post('/register', verifyFirebaseToken, async (req, res) => {
       owner_uid: req.user.uid,
       model,
       local_ip,
+      ip_password_hash: null,
       network_mode: 'AP' // Default to AP mode
     });
 

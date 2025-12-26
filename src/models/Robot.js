@@ -23,7 +23,8 @@ const robotSchema = new mongoose.Schema({
   },
   ip_password_hash: {
     type: String,
-    required: true
+    required: false,
+    default: null
   },
   network_mode: {
     type: String,
