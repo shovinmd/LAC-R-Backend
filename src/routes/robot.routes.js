@@ -369,4 +369,39 @@ router.put('/gem-status/:robot_id', verifyFirebaseToken, async (req, res) => {
   }
 });
 
+// POST /robot/delete - Delete a robot
+router.post('/delete', verifyFirebaseToken, async (req, res) => {
+  try {
+    const { robot_id } = req.body;
+
+    if (!robot_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'robot_id is required'
+      });
+    }
+
+    const robot = await Robot.findOne({ robot_id, owner_uid: req.user.uid });
+    if (!robot) {
+      return res.status(404).json({
+        success: false,
+        error: 'Robot not found'
+      });
+    }
+
+    await Robot.deleteOne({ robot_id, owner_uid: req.user.uid });
+
+    res.json({
+      success: true,
+      message: 'Robot deleted successfully'
+    });
+  } catch (error) {
+    console.error('Error deleting robot:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to delete robot'
+    });
+  }
+});
+
 module.exports = router;
